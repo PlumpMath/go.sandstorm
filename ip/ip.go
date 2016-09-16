@@ -58,16 +58,20 @@ func (d *IpNetworkDialer) Dial(network, addr string) (net.Conn, error) {
 				return nil
 			}).Port()
 		fromUpstream, toDownstream := io.Pipe()
+		connRet, err := portPromise.Connect(d.Ctx,
+			func(p capnp.TcpPort_connect_Params) error {
+				downstream := util_capnp.ByteStream_ServerToClient(
+					&util.WriteCloserByteStream{toDownstream},
+				)
+				p.SetDownstream(downstream)
+				return nil
+			}).Struct()
+		if err != nil {
+			panic(err)
+		}
 		toUpstream := util.ByteStreamWriteCloser{
 			Ctx: d.Ctx,
-			Obj: portPromise.Connect(d.Ctx,
-				func(p capnp.TcpPort_connect_Params) error {
-					downstream := util_capnp.ByteStream_ServerToClient(
-						&util.WriteCloserByteStream{toDownstream},
-					)
-					p.SetDownstream(downstream)
-					return nil
-				}).Upstream(),
+			Obj: connRet.Upstream(),
 		}
 		return &iocommon.RWCConn{
 			ReadWriteCloser: iocommon.MergedRWC{
