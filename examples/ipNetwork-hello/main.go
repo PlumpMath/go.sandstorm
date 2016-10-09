@@ -118,7 +118,11 @@ func (v myUiView) NewSession(p grain_capnp.UiView_newSession) error {
 			return
 		}
 		defer conn.Close()
-		conn.Write([]byte(message))
+		for {
+			println("writing message")
+			conn.Write([]byte(message))
+			time.Sleep(time.Second * 15)
+		}
 	})
 	client := ws_capnp.WebSession_ServerToClient(websession.FromHandler(v.Ctx, mux)).Client
 	p.Results.SetSession(grain_capnp.UiSession{client})
